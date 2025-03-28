@@ -88,6 +88,10 @@ where
             chain_provider.clone(),
         );
         let dap = EthereumDataSource::new_from_parts(chain_provider.clone(), blob_provider, &cfg);
+        tracing::info!(
+            "INIT ETH DAP Blob Batcher address: {:?}",
+            dap.blob_source.batcher_address
+        );
         let celestia_data_source = CelestiaDASource::new(celestia_provider);
         let dap = CelestiaDADataSource::new(dap, celestia_data_source);
 

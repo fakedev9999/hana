@@ -22,7 +22,7 @@ tracing.workspace = true
 
 thiserror.workspace = true
 
-kona-client = { git = "https://github.com/op-rs/kona", tag = "kona-client/v0.1.0-beta.9", default-features = false }
+kona-client.workspace = true
 
 [features]
 default = ["client-tracing"]

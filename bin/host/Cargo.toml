@@ -39,7 +39,7 @@ tracing-subscriber = { workspace = true, features = ["fmt"] }
 celestia-types.workspace = true
 celestia-rpc.workspace = true
 
-kona-host = { git = "https://github.com/op-rs/kona", tag = "kona-client/v0.1.0-beta.9"}
+kona-host.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
