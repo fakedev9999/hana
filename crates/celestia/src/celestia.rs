@@ -60,33 +60,51 @@ where
         block_ref: &BlockInfo,
         batcher_address: Address,
     ) -> PipelineResult<Self::Item> {
-        // Feth Blob pointer from the Ethereum Data Source
-        let pointer_data = self
+        let ecotone_enabled = self
             .ethereum_source
-            .next(block_ref, batcher_address)
-            .await?;
+            .ecotone_timestamp
+            .map(|e| block_ref.timestamp >= e)
+            .unwrap_or(false);
 
-        let blob = if pointer_data[2] == 0x0c {
-            let height_bytes = &pointer_data[3..11];
-            let height = u64::from_le_bytes(height_bytes.try_into().unwrap());
-            let hash_array: [u8; 32] = pointer_data[11..43]
-                .try_into()
-                .expect("Slice must be 32 bytes");
-            let commitment = Commitment::new(hash_array);
-
-            info!("Fetching celestia blob at height: {:?}", height);
-            let celestia_blob = self.celestia_source.next(height, commitment).await?;
-
-            celestia_blob
-        } else {
+        if ecotone_enabled {
+            // Fetch data from the Ethereum Blob Source.
             info!(
-                "Fetching data from Ethereum Source at ref: {:?}",
+                "Fetching data from Ethereum Blob Source at ref: {:?}",
                 block_ref.number
             );
-            pointer_data
-        };
+            self.ethereum_source
+                .blob_source
+                .next(block_ref, batcher_address)
+                .await
+        } else {
+            let calldata = self
+                .ethereum_source
+                .calldata_source
+                .next(block_ref, batcher_address)
+                .await?;
 
-        Ok(blob)
+            // Check if the calldata is a Celestia blob pointer (0x0c marker)
+            if calldata[2] == 0x0c {
+                // Fetch data from the Celestia Source.
+                let height_bytes = &calldata[3..11];
+                let height = u64::from_le_bytes(height_bytes.try_into().unwrap());
+                let hash_array: [u8; 32] =
+                    calldata[11..43].try_into().expect("Slice must be 32 bytes");
+                let commitment = Commitment::new(hash_array);
+
+                info!("Fetching celestia blob at height: {:?}", height);
+                let celestia_blob = self.celestia_source.next(height, commitment).await?;
+
+                Ok(celestia_blob)
+            } else {
+                // Fetch data from the Ethereum Calldata Source.
+                info!(
+                    "Fetching data from Ethereum Calldata Source at ref: {:?}",
+                    block_ref.number
+                );
+                Ok(calldata)
+            }
+        }
     }
 
     fn clear(&mut self) {
