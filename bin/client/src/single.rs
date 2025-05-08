@@ -14,7 +14,7 @@ use kona_proof::{
     executor::KonaExecutor,
     l1::{OracleBlobProvider, OracleL1ChainProvider},
     l2::OracleL2ChainProvider,
-    sync::new_pipeline_cursor,
+    sync::new_oracle_pipeline_cursor,
     BootInfo, CachingOracle, HintType,
 };
 use op_alloy_consensus::OpTxEnvelope;
@@ -95,7 +95,7 @@ where
     ////////////////////////////////////////////////////////////////
 
     // Create a new derivation driver with the given boot information and oracle.
-    let cursor = new_pipeline_cursor(
+    let cursor = new_oracle_pipeline_cursor(
         rollup_config.as_ref(),
         safe_head,
         &mut l1_provider,
