@@ -184,7 +184,9 @@ pub fn verify_data_commitment(
     let block_hash = block_header.hash_slow();
     assert!(
         block_hash == l1_block_hash,
-        "computed block hash must match host l1 head"
+        "computed block hash must match host l1 head: {} != {}",
+        block_hash,
+        l1_block_hash
     );
 
     let account = TrieAccount {

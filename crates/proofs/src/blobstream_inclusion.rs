@@ -202,6 +202,12 @@ pub async fn get_blobstream_proof(
         .flat_map(|proof| proof.proof.into_iter().map(|bytes| bytes))
         .collect();
 
+    tracing::info!("get_blobstream_proof - l1_head: {:?}", l1_head);
+    tracing::info!(
+        "get_blobstream_proof - block_header.inner.number: {:?}",
+        block_header.inner.number
+    );
+
     match verify_data_commitment(
         proof_response.storage_hash,
         proof_bytes.clone(),
