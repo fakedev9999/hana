@@ -64,8 +64,17 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
         let boot = BootInfo::load(self.oracle.as_ref()).await?;
 
         // Get the expected blobstream address for the chain id.
+        info!(
+            "Boot info - rollup_config.l1_chain_id: {:#}",
+            boot.rollup_config.l1_chain_id
+        );
         let expected_blobstream_address = blostream_address(boot.rollup_config.l1_chain_id)
             .expect("No canonical Blobstream address found for chain id");
+
+        info!(
+            "EXPECTED BLOBSTREAM ADDRESS: {:#}",
+            expected_blobstream_address
+        );
 
         match payload
             .blobstream_proof
