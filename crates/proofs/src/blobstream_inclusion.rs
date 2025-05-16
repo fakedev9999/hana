@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, vec::Vec};
 use alloy_primitives::{keccak256, Address, BlockHash, BlockNumber, Bytes, B256};
 use alloy_provider::{Provider, RootProvider};
-use alloy_rpc_types_eth::{BlockId, BlockNumberOrTag, Filter, FilterBlockOption, FilterSet};
+use alloy_rpc_types_eth::{BlockNumberOrTag, Filter, FilterBlockOption, FilterSet};
 use alloy_sol_types::SolEvent;
 use celestia_rpc::{blobstream::BlobstreamClient, Client, HeaderClient, ShareClient};
 use celestia_types::Blob;
@@ -181,6 +181,7 @@ pub async fn get_blobstream_proof(
         proof_response.code_hash.clone(),
         proof_bytes,
         proof_response.account_proof,
-        block.header.state_root,
+        block.header.inner,
+        l1_head,
     ));
 }

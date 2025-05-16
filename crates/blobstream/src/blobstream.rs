@@ -2,6 +2,7 @@ use std::boxed::Box;
 
 use alloc::vec::Vec;
 use alloy_chains::NamedChain;
+use alloy_consensus::Header;
 use alloy_primitives::{address, keccak256, Address, Bytes, FixedBytes, B256, U256};
 use alloy_sol_types::sol;
 use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
@@ -79,8 +80,10 @@ pub struct BlobstreamProof {
     pub storage_proof: Vec<Bytes>,
     /// The account proof for the blobstream contract in the account trie
     pub account_proof: Vec<Bytes>,
-    /// The state root to verify against
-    pub state_root: B256,
+    /// The block header to verify against
+    pub block_header: Header,
+    /// The l1 head to verify against
+    pub l1_head: B256,
 }
 
 impl BlobstreamProof {
@@ -97,7 +100,8 @@ impl BlobstreamProof {
         code_hash: B256,
         storage_proof: Vec<Bytes>,
         account_proof: Vec<Bytes>,
-        state_root: B256,
+        block_header: Header,
+        l1_head: B256,
     ) -> Self {
         Self {
             data_root,
@@ -111,7 +115,8 @@ impl BlobstreamProof {
             code_hash,
             storage_proof,
             account_proof,
-            state_root,
+            block_header,
+            l1_head,
         }
     }
 

@@ -14,7 +14,7 @@ use kona_preimage::errors::PreimageOracleError;
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use kona_proof::errors::OracleProviderError;
 use kona_proof::{BootInfo, Hint};
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::hint::HintWrapper;
 use crate::payload::OraclePayload;
@@ -124,16 +124,21 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
             payload.blobstream_proof.storage_root,
             payload.blobstream_proof.code_hash,
             payload.blobstream_proof.account_proof,
-            payload.blobstream_proof.state_root,
+            payload.blobstream_proof.block_header.state_root,
         ) {
             Ok(_) => info!("Celestia blobs BlobstreamAccount succesfully verified"),
             Err(err) => {
-                warn!(
-                    "Intentionally ignoring failed BlobstreamAccount verification: {:#}",
-                    err
-                );
+                return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
+                    err.to_string(),
+                )))
             }
         }
+
+        assert_eq!(
+            payload.blobstream_proof.l1_head,
+            payload.blobstream_proof.block_header.hash_slow(),
+            "L1 head does not match block header hash"
+        );
 
         Ok(payload.blob)
     }
