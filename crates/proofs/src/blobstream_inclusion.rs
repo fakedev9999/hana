@@ -6,8 +6,8 @@ use alloy_sol_types::SolEvent;
 use celestia_rpc::{blobstream::BlobstreamClient, Client, HeaderClient, ShareClient};
 use celestia_types::Blob;
 use hana_blobstream::blobstream::{
-    calculate_mapping_slot, encode_data_root_tuple, verify_data_commitment_storage,
-    BlobstreamProof, SP1Blobstream, SP1BlobstreamDataCommitmentStored, DATA_COMMITMENTS_SLOT,
+    calculate_mapping_slot, encode_data_root_tuple, BlobstreamProof, SP1Blobstream,
+    SP1BlobstreamDataCommitmentStored, DATA_COMMITMENTS_SLOT,
 };
 use tracing::info;
 
@@ -163,25 +163,23 @@ pub async fn get_blobstream_proof(
         })
         .collect();
 
-    match verify_data_commitment_storage(
-        proof_response.storage_hash,
-        proof_bytes.clone(),
-        event.proof_nonce,
-        event.data_commitment,
-    ) {
-        Ok(_) => {
-            println!("Succesfully verified storage proof for Blobstream data commitment");
+    let block = l1_provider
+        .get_block(BlockNumberOrTag::Finalized.into())
+        .await?
+        .expect("Failed to get finalized block");
 
-            return Ok(BlobstreamProof::new(
-                data_root,
-                event.data_commitment,
-                data_root_proof,
-                share_proof,
-                event.proof_nonce,
-                proof_response.storage_hash.clone(),
-                proof_bytes,
-            ));
-        }
-        Err(err) => anyhow::bail!("Error verifying storage proof {}", err),
-    }
+    return Ok(BlobstreamProof::new(
+        data_root,
+        event.data_commitment,
+        data_root_proof,
+        share_proof,
+        event.proof_nonce,
+        proof_response.nonce,
+        proof_response.balance,
+        proof_response.storage_hash.clone(),
+        proof_response.code_hash.clone(),
+        proof_bytes,
+        proof_response.account_proof,
+        block.header.state_root,
+    ));
 }

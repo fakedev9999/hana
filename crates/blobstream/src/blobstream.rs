@@ -1,12 +1,11 @@
 use std::boxed::Box;
 
 use alloc::vec::Vec;
-use alloy_primitives::{keccak256, Bytes, FixedBytes, B256, U256};
+use alloy_chains::NamedChain;
+use alloy_primitives::{address, keccak256, Address, Bytes, FixedBytes, B256, U256};
 use alloy_sol_types::sol;
-use alloy_trie::{
-    proof::{verify_proof, ProofVerificationError},
-    Nibbles,
-};
+use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
+use anyhow::Result;
 use celestia_types::{hash::Hash, MerkleProof, ShareProof};
 use serde::{Deserialize, Serialize};
 
@@ -67,10 +66,20 @@ pub struct BlobstreamProof {
     pub share_proof: ShareProof,
     /// The proof_nonce in blobstream
     pub proof_nonce: U256,
+    /// The nonce of the blobstream contract in the account trie
+    pub nonce: u64,
+    /// The balance of the blobstream contract in the account trie
+    pub balance: U256,
     /// The storage root to verify against
     pub storage_root: B256,
+    /// The code hash of the blobstream contract in the account trie
+    pub code_hash: B256,
     /// The storage proof for the state_dataCommitments mapping slot in Blobstream
     pub storage_proof: Vec<Bytes>,
+    /// The account proof for the blobstream contract in the account trie
+    pub account_proof: Vec<Bytes>,
+    /// The state root to verify against
+    pub state_root: B256,
 }
 
 impl BlobstreamProof {
@@ -81,8 +90,13 @@ impl BlobstreamProof {
         data_root_tuple_proof: MerkleProof,
         share_proof: ShareProof,
         proof_nonce: U256,
+        nonce: u64,
+        balance: U256,
         storage_root: B256,
+        code_hash: B256,
         storage_proof: Vec<Bytes>,
+        account_proof: Vec<Bytes>,
+        state_root: B256,
     ) -> Self {
         Self {
             data_root,
@@ -90,8 +104,13 @@ impl BlobstreamProof {
             data_root_tuple_proof,
             share_proof,
             proof_nonce,
+            nonce,
+            balance,
             storage_root,
+            code_hash,
             storage_proof,
+            account_proof,
+            state_root,
         }
     }
 
@@ -133,7 +152,7 @@ pub fn verify_data_commitment_storage(
     storage_proof: Vec<Bytes>,
     commitment_nonce: U256,
     expected_commitment: B256,
-) -> Result<(), ProofVerificationError> {
+) -> Result<()> {
     // Calculate the storage slot for state_dataCommitments[nonce]
     let slot = calculate_mapping_slot(DATA_COMMITMENTS_SLOT, commitment_nonce);
 
@@ -147,7 +166,44 @@ pub fn verify_data_commitment_storage(
 
     match verify_proof(root, nibbles, Some(expected_with_prefix), &storage_proof) {
         Ok(_) => Ok(()),
-        Err(err) => return Err(err),
+        Err(err) => {
+            return Err(anyhow::anyhow!(
+                "Failed to verify blobstream data commitment storage proof: {:?}",
+                err
+            ))
+        }
+    }
+}
+
+pub fn verify_blobstream_account(
+    blobstream_address: Address,
+    blobstream_nonce: u64,
+    blobstream_balance: U256,
+    blobstream_storage_root: B256,
+    blobstream_code_hash: B256,
+    blobstream_account_proof: Vec<Bytes>,
+    state_root: B256,
+) -> Result<()> {
+    let account = TrieAccount {
+        nonce: blobstream_nonce,
+        balance: blobstream_balance,
+        storage_root: blobstream_storage_root,
+        code_hash: blobstream_code_hash,
+    };
+
+    match verify_proof(
+        state_root,
+        Nibbles::unpack(keccak256(blobstream_address)),
+        Some(alloy_rlp::encode(account)),
+        &blobstream_account_proof,
+    ) {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            return Err(anyhow::anyhow!(
+                "Failed to verify blobstream account proof: {:?}",
+                err
+            ))
+        }
     }
 }
 
@@ -162,4 +218,27 @@ pub fn calculate_mapping_slot(mapping_slot: u32, key: U256) -> B256 {
     concatenated[32..64].copy_from_slice(&slot_bytes);
 
     alloy_primitives::keccak256(concatenated)
+}
+
+/// The canonical Blobstream address for the given chain id.
+///
+/// Source: https://docs.celestia.org/how-to-guides/blobstream#deployed-contracts
+pub fn blostream_address(chain_id: u64) -> Option<Address> {
+    if let Ok(chain) = NamedChain::try_from(chain_id) {
+        match chain {
+            NamedChain::Mainnet => Some(address!("0x7Cf3876F681Dbb6EdA8f6FfC45D66B996Df08fAe")),
+            NamedChain::Arbitrum => Some(address!("0xA83ca7775Bc2889825BcDeDfFa5b758cf69e8794")),
+            NamedChain::Base => Some(address!("0xA83ca7775Bc2889825BcDeDfFa5b758cf69e8794")),
+            NamedChain::Scroll => Some(address!("0x5008fa5CC3397faEa90fcde71C35945db6822218")),
+            NamedChain::Sepolia => Some(address!("0xF0c6429ebAB2e7DC6e05DaFB61128bE21f13cb1e")),
+            NamedChain::ArbitrumSepolia => {
+                Some(address!("0xc3e209eb245Fd59c8586777b499d6A665DF3ABD2"))
+            }
+            NamedChain::BaseSepolia => Some(address!("0xc3e209eb245Fd59c8586777b499d6A665DF3ABD2")),
+            NamedChain::Holesky => Some(address!("0x315A044cb95e4d44bBf6253585FbEbcdB6fb41ef")),
+            _ => None,
+        }
+    } else {
+        None
+    }
 }

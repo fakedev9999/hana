@@ -5,12 +5,15 @@ use alloc::vec::Vec;
 use alloy_primitives::{keccak256, Bytes};
 use async_trait::async_trait;
 use celestia_types::Commitment;
-use hana_blobstream::blobstream::{encode_data_root_tuple, verify_data_commitment_storage};
+use hana_blobstream::blobstream::{
+    blostream_address, encode_data_root_tuple, verify_blobstream_account,
+    verify_data_commitment_storage,
+};
 use hana_celestia::CelestiaProvider;
 use kona_preimage::errors::PreimageOracleError;
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use kona_proof::errors::OracleProviderError;
-use kona_proof::Hint;
+use kona_proof::{BootInfo, Hint};
 use tracing::info;
 
 use crate::hint::HintWrapper;
@@ -55,7 +58,20 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
         let payload = OraclePayload::from_bytes(&oracle_result)
             .expect("Failed to deserialize Celestia Oracle Payload");
 
-        match payload.share_proof.verify(payload.data_root) {
+        // Load the boot info from the oracle.
+        // *Security Note*: This BootInfo must be committed to in the program that is verified on-chain. The l1Head
+        // must be verified to match a blockhash on the blockchain where this program is being verified.
+        let boot = BootInfo::load(self.oracle.as_ref()).await?;
+
+        // Get the expected blobstream address for the chain id.
+        let expected_blobstream_address = blostream_address(boot.rollup_config.l1_chain_id)
+            .expect("No canonical Blobstream address found for chain id");
+
+        match payload
+            .blobstream_proof
+            .share_proof
+            .verify(payload.blobstream_proof.data_root)
+        {
             Ok(_) => info!("Celestia blobs ShareProof succesfully verified"),
             Err(err) => {
                 return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
@@ -64,20 +80,50 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
             }
         }
 
-        let encoded_data_root_tuple = encode_data_root_tuple(height, &payload.data_root);
+        let encoded_data_root_tuple =
+            encode_data_root_tuple(height, &payload.blobstream_proof.data_root);
 
-        payload
-            .data_root_tuple_proof
-            .verify(encoded_data_root_tuple, *payload.data_commitment)
-            .expect("Failed to verify data root tuple proof");
+        match payload.blobstream_proof.data_root_tuple_proof.verify(
+            encoded_data_root_tuple,
+            *payload.blobstream_proof.data_commitment,
+        ) {
+            Ok(_) => info!("Celestia blobs DataRootTupleProof succesfully verified"),
+            Err(err) => {
+                return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
+                    err.to_string(),
+                )))
+            }
+        }
+        match verify_data_commitment_storage(
+            payload.blobstream_proof.storage_root,
+            payload.blobstream_proof.storage_proof,
+            payload.blobstream_proof.proof_nonce,
+            payload.blobstream_proof.data_commitment,
+        ) {
+            Ok(_) => info!("Celestia blobs DataCommitmentStorage succesfully verified"),
+            Err(err) => {
+                return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
+                    err.to_string(),
+                )))
+            }
+        }
 
-        verify_data_commitment_storage(
-            payload.storage_root,
-            payload.storage_proof,
-            payload.proof_nonce,
-            payload.data_commitment,
-        )
-        .expect("Failed to verify data commitment against Blobstream storage slot");
+        match verify_blobstream_account(
+            expected_blobstream_address,
+            payload.blobstream_proof.nonce,
+            payload.blobstream_proof.balance,
+            payload.blobstream_proof.storage_root,
+            payload.blobstream_proof.code_hash,
+            payload.blobstream_proof.account_proof,
+            payload.blobstream_proof.state_root,
+        ) {
+            Ok(_) => info!("Celestia blobs BlobstreamAccount succesfully verified"),
+            Err(err) => {
+                return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
+                    err.to_string(),
+                )))
+            }
+        }
 
         Ok(payload.blob)
     }
