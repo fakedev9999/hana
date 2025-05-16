@@ -8,6 +8,7 @@ use alloy_trie::{proof::verify_proof, Nibbles, TrieAccount};
 use anyhow::Result;
 use celestia_types::{hash::Hash, MerkleProof, ShareProof};
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 /////// Contract ///////
 
@@ -190,6 +191,11 @@ pub fn verify_blobstream_account(
         storage_root: blobstream_storage_root,
         code_hash: blobstream_code_hash,
     };
+
+    info!(
+        "NIBBLES: {:?}",
+        Nibbles::unpack(keccak256(blobstream_address))
+    );
 
     match verify_proof(
         state_root,
