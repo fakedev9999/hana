@@ -119,7 +119,10 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
         ) {
             Ok(_) => info!("Celestia blobs BlobstreamAccount succesfully verified"),
             Err(err) => {
-                warn!("Intentionally ignoring failed BlobstreamAccount verification");
+                warn!(
+                    "Intentionally ignoring failed BlobstreamAccount verification: {:#}",
+                    err
+                );
             }
         }
 
