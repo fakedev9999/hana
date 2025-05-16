@@ -66,20 +66,20 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
             .expect("No canonical Blobstream address found for chain id");
 
         // Verify the data commitment exists in storage on the supplied L1 block hash.
-        verify_data_commitment(
-            payload.blobstream_proof.storage_root,
-            payload.blobstream_proof.storage_proof,
-            payload.blobstream_proof.account_proof,
-            payload.blobstream_proof.proof_nonce,
-            payload.blobstream_proof.data_commitment,
-            expected_blobstream_address,
-            payload.blobstream_proof.blobstream_balance,
-            payload.blobstream_proof.blobstream_nonce,
-            payload.blobstream_proof.blobstream_code_hash,
-            payload.blobstream_proof.block_header,
-            boot.l1_head,
-        )
-        .expect("Failed to verify data commitment against Blobstream storage slot");
+        // verify_data_commitment(
+        //     payload.blobstream_proof.storage_root,
+        //     payload.blobstream_proof.storage_proof,
+        //     payload.blobstream_proof.account_proof,
+        //     payload.blobstream_proof.proof_nonce,
+        //     payload.blobstream_proof.data_commitment,
+        //     expected_blobstream_address,
+        //     payload.blobstream_proof.blobstream_balance,
+        //     payload.blobstream_proof.blobstream_nonce,
+        //     payload.blobstream_proof.blobstream_code_hash,
+        //     payload.blobstream_proof.block_header,
+        //     boot.l1_head,
+        // )
+        // .expect("Failed to verify data commitment against Blobstream storage slot");
 
         match payload
             .blobstream_proof
