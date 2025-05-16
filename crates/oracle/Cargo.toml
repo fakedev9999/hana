@@ -11,6 +11,7 @@ kona-proof.workspace = true
 hana-celestia.workspace = true
 hana-blobstream.workspace = true
 
+alloy-trie.workspace = true
 alloy-primitives.workspace = true
 
 serde.workspace = true

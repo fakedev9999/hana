@@ -5,6 +5,7 @@ use alloy_rpc_types_eth::{
     BlockId, BlockNumberOrTag, Filter, FilterBlockOption, FilterSet, RpcBlockHash,
 };
 use alloy_sol_types::SolEvent;
+use alloy_trie::Nibbles;
 use anyhow::ensure;
 use celestia_rpc::{blobstream::BlobstreamClient, Client, HeaderClient, ShareClient};
 use celestia_types::Blob;
@@ -201,6 +202,26 @@ pub async fn get_blobstream_proof(
         .into_iter()
         .flat_map(|proof| proof.proof.into_iter().map(|bytes| bytes))
         .collect();
+
+    // Get the nibbles for the storage slot for state_dataCommitments[nonce]
+    let data_commitment_slot_nibbles = Nibbles::unpack(keccak256(calculate_mapping_slot(
+        DATA_COMMITMENTS_SLOT,
+        event.proof_nonce,
+    )));
+
+    // Handle the RLP encoding by modifying the expected result
+    // Add the 0xa0 prefix to match how it's stored on-chain
+    let mut expected_with_prefix = Vec::with_capacity(33);
+    expected_with_prefix.push(0xa0); // Add the RLP prefix
+    expected_with_prefix.extend_from_slice(event.data_commitment.as_slice());
+
+    info!("HOST - STORAGE ROOT: {:?}", proof_response.storage_hash);
+    info!("HOST - STORAGE PROOF: {:?}", proof_bytes);
+    info!("HOST - EXPECTED WITH PREFIX: {:?}", expected_with_prefix);
+    info!(
+        "HOST - DATA COMMITMENT SLOT NIBBLES: {:?}",
+        data_commitment_slot_nibbles
+    );
 
     match verify_data_commitment(
         proof_response.storage_hash,

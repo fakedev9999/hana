@@ -3,10 +3,11 @@ use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloy_primitives::{keccak256, Bytes};
+use alloy_trie::Nibbles;
 use async_trait::async_trait;
 use celestia_types::Commitment;
 use hana_blobstream::blobstream::{
-    blostream_address, encode_data_root_tuple, verify_data_commitment,
+    blostream_address, calculate_mapping_slot, encode_data_root_tuple, verify_data_commitment, DATA_COMMITMENTS_SLOT,
 };
 use hana_celestia::CelestiaProvider;
 use kona_preimage::errors::PreimageOracleError;
@@ -64,6 +65,32 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
         // Get the expected blobstream address for the chain id.
         let expected_blobstream_address = blostream_address(boot.rollup_config.l1_chain_id)
             .expect("No canonical Blobstream address found for chain id");
+
+        // Get the nibbles for the storage slot for state_dataCommitments[nonce]
+        let data_commitment_slot_nibbles = Nibbles::unpack(keccak256(calculate_mapping_slot(
+            DATA_COMMITMENTS_SLOT,
+            payload.blobstream_proof.proof_nonce,
+        )));
+
+        // Handle the RLP encoding by modifying the expected result
+        // Add the 0xa0 prefix to match how it's stored on-chain
+        let mut expected_with_prefix = Vec::with_capacity(33);
+        expected_with_prefix.push(0xa0); // Add the RLP prefix
+        expected_with_prefix.extend_from_slice(payload.blobstream_proof.data_commitment.as_slice());
+
+        info!(
+            "CLIENT - STORAGE ROOT: {:?}",
+            payload.blobstream_proof.storage_root
+        );
+        info!(
+            "CLIENT - STORAGE PROOF: {:?}",
+            payload.blobstream_proof.storage_proof
+        );
+        info!("CLIENT - EXPECTED WITH PREFIX: {:?}", expected_with_prefix);
+        info!(
+            "CLIENT - DATA COMMITMENT SLOT NIBBLES: {:?}",
+            data_commitment_slot_nibbles
+        );
 
         // Verify the data commitment exists in storage on the supplied L1 block hash.
         verify_data_commitment(
