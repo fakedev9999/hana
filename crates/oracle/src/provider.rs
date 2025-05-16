@@ -14,7 +14,7 @@ use kona_preimage::errors::PreimageOracleError;
 use kona_preimage::{CommsClient, PreimageKey, PreimageKeyType};
 use kona_proof::errors::OracleProviderError;
 use kona_proof::{BootInfo, Hint};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::hint::HintWrapper;
 use crate::payload::OraclePayload;
@@ -119,9 +119,7 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
         ) {
             Ok(_) => info!("Celestia blobs BlobstreamAccount succesfully verified"),
             Err(err) => {
-                return Err(OracleProviderError::Preimage(PreimageOracleError::Other(
-                    err.to_string(),
-                )))
+                warn!("Intentionally ignoring failed BlobstreamAccount verification");
             }
         }
 
