@@ -196,6 +196,10 @@ pub fn verify_blobstream_account(
         "NIBBLES: {:?}",
         Nibbles::unpack(keccak256(blobstream_address))
     );
+    info!("STATE_ROOT for account proof: {:?}", state_root);
+    if let Some(first_proof_node) = blobstream_account_proof.first() {
+        info!("FIRST_PROOF_NODE for account proof: {:?}", first_proof_node);
+    }
 
     match verify_proof(
         state_root,

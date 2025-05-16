@@ -1,5 +1,5 @@
 use alloc::{boxed::Box, vec::Vec};
-use alloy_primitives::{keccak256, Address, BlockHash, Bytes, B256};
+use alloy_primitives::{keccak256, Address, BlockHash, BlockNumber, Bytes, B256};
 use alloy_provider::{Provider, RootProvider};
 use alloy_rpc_types_eth::{BlockId, BlockNumberOrTag, Filter, FilterBlockOption, FilterSet};
 use alloy_sol_types::SolEvent;
@@ -165,7 +165,7 @@ pub async fn get_blobstream_proof(
         .collect();
 
     let block = l1_provider
-        .get_block(BlockId::from(l1_head))
+        .get_block(BlockNumberOrTag::Latest.into())
         .await?
         .expect("Failed to get finalized block");
 
