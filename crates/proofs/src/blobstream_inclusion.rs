@@ -15,7 +15,7 @@ use hana_blobstream::blobstream::{
 use tracing::info;
 
 // Geth has a default of 5000 block limit for filters
-const FILTER_BLOCK_RANGE: u64 = 5000;
+const FILTER_BLOCK_RANGE: u64 = 10000;
 
 /// Find the data commitment  that contains the given Celestia height by parsing event logs
 /// This function assumes that the l1_head_block_number is one such that the event for relaying
