@@ -64,19 +64,36 @@ impl HintHandler for CelestiaChainHintHandler {
                     .await
                 {
                     Ok(blob) => blob,
-                    Err(e) => anyhow::bail!("celestia blob not found: {:#}", e),
+                    Err(e) => {
+                        // Log the error for debugging
+                        tracing::error!(
+                            target: "host",
+                            "Failed to fetch Celestia blob at height {height} with commitment {commitment:?}: {e:#}"
+                        );
+                        anyhow::bail!("celestia blob not found: {:#}", e)
+                    },
                 };
 
                 let data = blob.data.clone();
 
-                let blobstream_proof = get_blobstream_proof(
+                let blobstream_proof = match get_blobstream_proof(
                     providers.celestia.client.as_ref(),
                     providers.l1(),
                     cfg.single_host.l1_head,
                     height,
                     blob,
                 )
-                .await?;
+                .await {
+                    Ok(proof) => proof,
+                    Err(e) => {
+                        // Log the error for debugging
+                        tracing::error!(
+                            target: "host",
+                            "Failed to generate blobstream proof for height {height}: {e:#}"
+                        );
+                        anyhow::bail!("Failed to generate blobstream proof: {:#}", e)
+                    }
+                };
 
                 let payload = OraclePayload::new(Bytes::from(data), blobstream_proof)
                     .to_bytes()

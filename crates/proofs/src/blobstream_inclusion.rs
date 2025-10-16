@@ -75,7 +75,7 @@ pub async fn find_data_commitment(
 
                     info!(
                         "Found Data Root submission event block_number={} proof_nonce={} start={} end={}",
-                        log.clone().block_number.unwrap(),
+                        log.clone().block_number.unwrap_or_default(),
                         stored_event.proof_nonce,
                         stored_event.start_block,
                         stored_event.end_block
@@ -109,7 +109,10 @@ pub async fn get_blobstream_proof(
     height: u64,
     blob: Blob,
 ) -> Result<BlobstreamProof, anyhow::Error> {
-    let l1_block = l1_provider.get_block_by_hash(l1_head).await?.unwrap();
+    let l1_block = l1_provider
+        .get_block_by_hash(l1_head)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("L1 block not found for hash: {}", l1_head))?;
 
     let block_id = BlockId::Hash(RpcBlockHash::from(B256::from(l1_head)));
 
@@ -157,7 +160,7 @@ pub async fn get_blobstream_proof(
     let share_proof = celestia_node
         .share_get_range(&header, start_index, end_index)
         .await
-        .expect("Failed getting share proof")
+        .map_err(|e| anyhow::anyhow!("Failed getting share proof: {}", e))?
         .proof;
 
     // validate the proof before placing it on the KV store
@@ -168,7 +171,7 @@ pub async fn get_blobstream_proof(
 
     let event = find_data_commitment(height, blobstream_address, l1_provider, block_header.number)
         .await
-        .unwrap();
+        .map_err(|e| anyhow::anyhow!("Failed to find data commitment event: {}", e))?;
 
     let data_root_proof = celestia_node
         .blobstream_get_data_root_tuple_inclusion_proof(height, event.start_block, event.end_block)
@@ -178,7 +181,7 @@ pub async fn get_blobstream_proof(
 
     data_root_proof
         .verify(encoded_data_root_tuple, *event.data_commitment.clone())
-        .expect("failed to verify data root tuple inclusion proof");
+        .map_err(|e| anyhow::anyhow!("Failed to verify data root tuple inclusion proof: {:?}", e))?;
 
     let slot = calculate_mapping_slot(DATA_COMMITMENTS_SLOT, event.proof_nonce);
 
@@ -243,7 +246,10 @@ fn calculate_indices(
     shares_length: u64,
 ) -> (u64, u64) {
     let eds_row_roots = data_availability_header.row_roots();
-    let eds_size: u64 = eds_row_roots.len().try_into().unwrap();
+    let eds_size: u64 = eds_row_roots
+        .len()
+        .try_into()
+        .expect("EDS row roots length should fit in u64");
     let ods_size: u64 = eds_size / 2;
 
     let first_row_index: u64 = blob_index / eds_size;

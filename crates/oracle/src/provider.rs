@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use alloc::format;
 use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -54,7 +55,11 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
             .await?;
 
         let payload = OraclePayload::from_bytes(&oracle_result)
-            .expect("Failed to deserialize Celestia Oracle Payload");
+            .map_err(|e| {
+                OracleProviderError::Preimage(PreimageOracleError::Other(
+                    format!("Failed to deserialize Celestia Oracle Payload: {}", e),
+                ))
+            })?;
 
         // Load the boot info from the oracle.
         // *Security Note*: This BootInfo must be committed to in the program that is verified on-chain. The l1Head
@@ -63,7 +68,11 @@ impl<T: CommsClient + Sync + Send> CelestiaProvider for OracleCelestiaProvider<T
 
         // Get the expected blobstream address for the chain id.
         let expected_blobstream_address = blobstream_address(boot.rollup_config.l1_chain_id)
-            .expect("No canonical Blobstream address found for chain id");
+            .ok_or_else(|| {
+                OracleProviderError::Preimage(PreimageOracleError::Other(
+                    format!("No canonical Blobstream address found for chain id: {}", boot.rollup_config.l1_chain_id),
+                ))
+            })?;
 
         // Verify the data commitment exists in storage on the supplied L1 block hash.
         match verify_data_commitment(
