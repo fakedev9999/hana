@@ -169,24 +169,35 @@ pub async fn get_blobstream_proof(
         Err(err) => return Err(err.into()),
     }
 
+    info!("Finding data commitment event for height {height}");
     let event = find_data_commitment(height, blobstream_address, l1_provider, block_header.number)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to find data commitment event: {}", e))?;
 
+    info!("Getting data root tuple inclusion proof for height {height}");
     let data_root_proof = celestia_node
         .blobstream_get_data_root_tuple_inclusion_proof(height, event.start_block, event.end_block)
         .await?;
 
+    info!("Encoding data root tuple for height {height}");
     let encoded_data_root_tuple = encode_data_root_tuple(height, &data_root);
 
+    info!("Verifying data root tuple inclusion proof for height {height}");
     data_root_proof
         .verify(encoded_data_root_tuple, *event.data_commitment.clone())
-        .map_err(|e| anyhow::anyhow!("Failed to verify data root tuple inclusion proof: {:?}", e))?;
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to verify data root tuple inclusion proof: {:?}", e)
+        })?;
 
+    info!("Calculating mapping slot for height {height}");
     let slot = calculate_mapping_slot(DATA_COMMITMENTS_SLOT, event.proof_nonce);
 
+    info!("Converting mapping slot to B256 for height {height}");
     let slot_b256 = B256::from_slice(slot.as_slice());
 
+    info!(
+        "Getting proof for blobstream address {blobstream_address} at slot {slot_b256} for height {height}"
+    );
     let proof_response = l1_provider
         .get_proof(blobstream_address, vec![slot_b256])
         .block_id(block_id)
@@ -199,12 +210,14 @@ pub async fn get_blobstream_proof(
 
     // get blobstream address from L1 Provider, check against the proof and also verify in program
 
+    info!("Getting proof bytes for height {height}");
     let proof_bytes: Vec<Bytes> = proof_response
         .storage_proof
         .into_iter()
         .flat_map(|proof| proof.proof.into_iter().map(|bytes| bytes))
         .collect();
 
+    info!("Verifying data commitment for height {height}");
     match verify_data_commitment(
         proof_response.storage_hash,
         proof_bytes.clone(),
