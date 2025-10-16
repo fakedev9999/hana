@@ -32,6 +32,7 @@ pub async fn find_data_commitment(
     let event_selector = keccak256(event_signature.as_bytes());
     let topic0: FilterSet<B256> = vec![event_selector.into()].into();
 
+    info!("L1 HEAD BLOCK NUMBER for finding data commitment: {l1_head_block_number}");
     // Start from the given Ethereum block height and scan backwards
     let mut end = l1_head_block_number;
     let mut start = if end > FILTER_BLOCK_RANGE {
@@ -88,6 +89,7 @@ pub async fn find_data_commitment(
 
         // If we've reached the beginning of the chain, stop
         if start == 0 {
+            error!("No matching event found for the given Celestia height");
             return Err("No matching event found for the given Celestia height".into());
         }
 
@@ -174,6 +176,7 @@ pub async fn get_blobstream_proof(
         .await
         .map_err(|e| anyhow::anyhow!("Failed to find data commitment event: {}", e))?;
 
+    // NOT SEEING THIS LOG
     info!("Getting data root tuple inclusion proof for height {height}");
     let data_root_proof = celestia_node
         .blobstream_get_data_root_tuple_inclusion_proof(height, event.start_block, event.end_block)
