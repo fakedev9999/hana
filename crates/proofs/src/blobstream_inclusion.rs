@@ -12,7 +12,7 @@ use hana_blobstream::blobstream::{
     blobstream_address, calculate_mapping_slot, encode_data_root_tuple, verify_data_commitment,
     BlobstreamProof, SP1Blobstream, SP1BlobstreamDataCommitmentStored, DATA_COMMITMENTS_SLOT,
 };
-use tracing::info;
+use tracing::{error, info};
 
 // Geth has a default of 5000 block limit for filters
 const FILTER_BLOCK_RANGE: u64 = 5000;
