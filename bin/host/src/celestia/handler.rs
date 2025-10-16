@@ -57,6 +57,10 @@ impl HintHandler for CelestiaChainHintHandler {
                     hint.data[8..40].try_into().expect("Slice must be 32 bytes");
                 let commitment = Commitment::new(hash_array);
 
+                tracing::info!(
+                    target: "host",
+                    "Fetching Celestia blob at height {height} with commitment {commitment:?}"
+                );
                 let blob = match providers
                     .celestia
                     .client
@@ -71,11 +75,15 @@ impl HintHandler for CelestiaChainHintHandler {
                             "Failed to fetch Celestia blob at height {height} with commitment {commitment:?}: {e:#}"
                         );
                         anyhow::bail!("celestia blob not found: {:#}", e)
-                    },
+                    }
                 };
 
                 let data = blob.data.clone();
 
+                tracing::info!(
+                    target: "host",
+                    "Generating blobstream proof for height {height}"
+                );
                 let blobstream_proof = match get_blobstream_proof(
                     providers.celestia.client.as_ref(),
                     providers.l1(),
@@ -83,7 +91,8 @@ impl HintHandler for CelestiaChainHintHandler {
                     height,
                     blob,
                 )
-                .await {
+                .await
+                {
                     Ok(proof) => proof,
                     Err(e) => {
                         // Log the error for debugging
@@ -95,14 +104,30 @@ impl HintHandler for CelestiaChainHintHandler {
                     }
                 };
 
+                tracing::info!(
+                    target: "host",
+                    "Serializing celestia oracle payload"
+                );
                 let payload = OraclePayload::new(Bytes::from(data), blobstream_proof)
                     .to_bytes()
                     .expect("failed to serialize celestia oracle payload");
 
+                tracing::info!(
+                    target: "host",
+                    "Storing celestia oracle payload in key-value store"
+                );
                 let mut kv_lock = kv.write().await;
 
+                tracing::info!(
+                    target: "host",
+                    "Calculating celestia commitment hash"
+                );
                 let celestia_commitment_hash = keccak256(&hint.data);
 
+                tracing::info!(
+                    target: "host",
+                    "Storing celestia oracle payload in key-value store"
+                );
                 // store the blob data as a the preimage behind the hash of the height + blob commitment
                 kv_lock.set(
                     PreimageKey::new(*celestia_commitment_hash, PreimageKeyType::GlobalGeneric)
