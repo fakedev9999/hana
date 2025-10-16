@@ -58,12 +58,10 @@ pub async fn find_data_commitment(
         };
 
         // Get logs using the client reference
-        info!("Getting logs for filter: {filter:?}");
         let logs = eth_provider.get_logs(&filter).await?;
 
         // Parse logs using the generated event type
         for log in logs {
-            info!("Processing log: {log:?}");
             // Try to decode the log using SP1Blobstream's generated event decoder
             if let Ok(event) = SP1Blobstream::DataCommitmentStored::decode_log(&log.clone().into())
             {
@@ -103,6 +101,7 @@ pub async fn find_data_commitment(
         } else {
             0
         };
+        info!("Moving to previous batch: start={start}, end={end}");
     }
 }
 
