@@ -79,6 +79,10 @@ impl HintHandler for CelestiaChainHintHandler {
                 };
 
                 let data = blob.data.clone();
+                tracing::info!(
+                    target: "host",
+                    "Fetched Celestia blob data: {data:?}"
+                );
 
                 tracing::info!(
                     target: "host",
@@ -104,6 +108,7 @@ impl HintHandler for CelestiaChainHintHandler {
                     }
                 };
 
+                // NOT SEEING THIS LOG
                 tracing::info!(
                     target: "host",
                     "Serializing celestia oracle payload"
