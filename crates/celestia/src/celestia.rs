@@ -76,6 +76,8 @@ where
             info!("Fetching celestia blob at height: {:?}", height);
             let celestia_blob = self.celestia_source.next(height, commitment).await?;
 
+            info!("Fetched celestia blob: {:?}", celestia_blob);
+
             celestia_blob
         } else {
             info!(
