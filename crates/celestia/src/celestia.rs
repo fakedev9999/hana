@@ -57,6 +57,7 @@ where
         block_ref: &BlockInfo,
         batcher_address: Address,
     ) -> PipelineResult<Self::Item> {
+        info!("Fetching celestia blob at block ref: {:?}", block_ref);
         // Feth Blob pointer from the Ethereum Data Source
         let pointer_data = self
             .ethereum_source
