@@ -1,5 +1,6 @@
 use alloc::sync::Arc;
 use alloy_consensus::Sealed;
+use alloy_op_evm::post_exec::PostExecEvmFactoryAdapter;
 use alloy_primitives::B256;
 use core::fmt::Debug;
 use hana_celestia::{CelestiaDADataSource, CelestiaDASource};
@@ -109,10 +110,12 @@ where
         da_provider,
         l1_provider.clone(),
         l2_provider.clone(),
+        None,
     )
     .await?;
 
-    let evm_factory = FpvmOpEvmFactory::new(hint_client, oracle_client);
+    let evm_factory =
+        PostExecEvmFactoryAdapter::new(FpvmOpEvmFactory::new(hint_client, oracle_client));
 
     let executor = KonaExecutor::new(
         rollup_config.as_ref(),
